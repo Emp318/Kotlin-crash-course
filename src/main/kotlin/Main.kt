@@ -675,3 +675,115 @@ class BusinessAccount(owner: String, balance: Double) : Account(owner, balance) 
 // private   → only inside this class
 // protected → this class and subclasses only
 // internal  → anywhere within the same module (same app or library)
+
+
+// ── EXTENSION FUNCTIONS ──────────────────────────
+// add a function to an existing class without modifying it
+// the class you're extending is called the receiver
+// 'this' inside the function refers to the object it's called on
+//
+// used everywhere in Android — you'll see things like
+// String.isValidEmail(), View.hide(), Context.toast() in real codebases
+
+fun String.isValidEmail(): Boolean {
+    return this.contains("@") && this.contains(".")
+}
+
+fun String.capitalizeWords(): String {
+    return this.split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+}
+
+fun Double.toNaira(): String = "₦$this"
+
+// calling extension functions — looks like they're built into the class
+// "dan@mail.com".isValidEmail()   // true
+// "hello world".capitalizeWords() // Hello World
+// 1500.0.toNaira()                // ₦1500.0
+
+
+// ── LAMBDA FUNCTIONS ─────────────────────────────
+// a function with no name, written inline and assigned to a variable or passed directly
+// syntax: val name: (InputType) -> ReturnType = { parameter -> body }
+
+// lambda assigned to a variable
+val double: (Int) -> Int = { number -> number * 2 }
+// double(5)  // 10
+
+// when there's only one parameter, you can drop it and use 'it' instead
+val triple: (Int) -> Int = { it * 3 }
+// triple(5)  // 15
+
+// lambda with multiple parameters
+val add: (Int, Int) -> Int = { a, b -> a + b }
+// add(3, 4)  // 7
+
+// lambda that returns nothing
+val log: (String) -> Unit = { message -> println("LOG: $message") }
+// log("User logged in")  // LOG: User logged in
+
+// passing a lambda to a function — the { } block you pass IS the lambda
+// this is how Android handles button clicks, Compose UI, and callbacks
+// fun performRequest(onSuccess: () -> Unit)  — () -> Unit is a lambda type
+// performRequest { println("Done") }         — { println("Done") } is the lambda
+
+// higher order functions — functions that take or return lambdas
+// filter, map, and forEach are built-in higher order functions you'll use constantly
+
+val users = listOf("daniel", "saleh", "jamila", "dan")
+
+// filter — keep only items that match the condition, returns a new list
+val longNames = users.filter { it.length > 4 }
+// println(longNames)  // [daniel, saleh, jamila]
+
+// map — transform every item, returns a new list
+val upperNames = users.map { it.uppercase() }
+// println(upperNames)  // [DANIEL, SALEH, JAMILA, DAN]
+
+// chaining — filter then map
+val result = users
+    .filter { it.length > 3 }
+    .map { it.replaceFirstChar { c -> c.uppercase() } }
+// println(result)  // [Daniel, Saleh, Jamila]
+
+// real backend use — transform a list of DB results into response objects
+data class UserEntity(val id: Int, val email: String, val passwordHash: String)
+data class UserResponse(val id: Int, val email: String)  // never expose password
+
+val dbResults = listOf(
+    UserEntity(1, "dan@mail.com", "hashed123"),
+    UserEntity(2, "saleh@mail.com", "hashed456")
+)
+
+val apiResponse = dbResults.map { UserResponse(id = it.id, email = it.email) }
+// println(apiResponse)  // [UserResponse(id=1, email=dan@mail.com), ...]
+
+
+// ── SEALED INTERFACE ─────────────────────────────
+// like a sealed class but more flexible — a class can implement multiple sealed interfaces
+// a sealed class can only extend one parent
+//
+// use sealed interface when the types need to implement other interfaces too
+// common pattern in Android for UI state and Ktor/Spring Boot for result types
+
+sealed interface Result<out T> {
+    data class Success<T>(val data: T) : Result<T>
+    data class Error(val message: String, val code: Int = 500) : Result<Nothing>
+    object Loading : Result<Nothing>
+}
+
+// usage — same pattern as sealed class with 'when'
+fun handleResult(result: Result<String>) {
+    when (result) {
+        is Result.Success -> println("Data: ${result.data}")
+        is Result.Error   -> println("Error ${result.code}: ${result.message}")
+        is Result.Loading -> println("Loading...")
+    }
+}
+
+// handleResult(Result.Success("User fetched"))       // Data: User fetched
+// handleResult(Result.Error("Not found", code = 404)) // Error 404: Not found
+// handleResult(Result.Loading)                        // Loading...
+
+// sealed interface vs sealed class
+// sealed class  → extend one parent only, simpler, use most of the time
+// sealed interface → implement multiple interfaces, more flexible, use when you need it
